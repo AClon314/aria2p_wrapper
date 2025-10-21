@@ -394,13 +394,20 @@ class Aria:
         """yield slowest, return fails, log state if log is not None
         Usage:
         ```python
-        while self.state():
-            sleep(interval)
+        for _ in (__:=self.state()):
+            sleep()
         # or:
-        state = self.state()
+        for slowest in (_state:=self.state()):
+            sleep()
         try:
-            for slowest in state:
-                sleep(self.interval)
+            next(_state)
+        except StopIteration as e:
+            fails = e.value
+        # or:
+        _state = self.state()
+        try:
+            while (slowest:=next(_state)):
+                sleep()
         except StopIteration as e:
             fails = e.value
         ```
@@ -420,7 +427,7 @@ class Aria:
 
     def wait_all(self, interval=INTERVAL):
         """invoke self.state()"""
-        while self.state():
+        for _ in (__ := self.state()):
             sleep(interval)
 
     async def till_all(self, interval=INTERVAL):
@@ -435,7 +442,7 @@ class Aria:
             task.cancel()
         ```
         """
-        while self.state():
+        for _ in (__ := self.state()):
             await asyncio.sleep(interval)
 
 
