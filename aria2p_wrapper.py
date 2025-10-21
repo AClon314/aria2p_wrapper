@@ -100,7 +100,7 @@ class File:
 
     @property
     def md5(self):
-        return calc_hash_(self.path, "md5")
+        return calc_hash(self.path, "md5")
 
     @md5.setter
     def md5(self, value: str):
@@ -108,7 +108,7 @@ class File:
 
     @property
     def sha256(self):
-        return calc_hash_(self.path, "sha256")
+        return calc_hash(self.path, "sha256")
 
     @sha256.setter
     def sha256(self, value: str):
@@ -155,7 +155,7 @@ class File:
         else:
             try:
                 checksum = self.checksum()
-            except ValueError as e:
+            except Exception as e:
                 err = e
             if check_hash is None:
                 return checksum if checksum is not None else False
@@ -164,9 +164,13 @@ class File:
             else:
                 return is_exist and checksum
 
-    def checksum(self, hash: str | None = None, algorithm: TYPE_HASH = "md5") -> bool:
+    def checksum(
+        self, hash: str | None = None, algorithm: TYPE_HASH = "sha256"
+    ) -> bool:
         """raise ValueError if no hash is set, return True if hash matches"""
-        _hash = calc_hash_(self.path, algorithm)
+        if not self.path.exists():
+            raise FileNotFoundError(f"{self.path}")
+        _hash = calc_hash(self.path, algorithm)
         if not hash:
             hash = next((h for h in (self.expect_sha256, self.expect_md5) if h), None)
         if not hash:
