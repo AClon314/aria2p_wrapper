@@ -8,7 +8,7 @@ aria.download(File('https://',path=''))
 ```
 """
 
-from aria2p_wrapper.aria2p_wrapper import (
+from .aria2p_wrapper import (
     File,
     Aria,
     get_aria,

@@ -18,7 +18,7 @@ from typing import Callable, Literal, Sequence, TypedDict, Unpack, Any, get_args
 try:
     import requests, httpx
 
-    Response = requests.Response | httpx.Response | Any
+    Response = requests.Response | httpx.Response
 except ImportError:
     ...
 _ARIA_CMD = "aria2c --enable-rpc --rpc-listen-port={} --continue=true"
@@ -65,7 +65,7 @@ class Kw_options(TypedDict, total=False):
     header: str
 
 
-def to_options(response: "requests.Response") -> dict[str, str]:
+def to_options(response: "Response") -> dict[str, str]:
     """from response to aria2p options"""
     options: dict[str, str] = {}
     req_headers = response.request.headers
@@ -318,9 +318,7 @@ class Aria:
         dls: list[aria2p.Download] = []
         for f in files:
             response_options = (
-                to_options(response)
-                if isinstance(response, "requests.Response")
-                else {}
+                to_options(response) if isinstance(response, Response) else {}
             )
             _options = {
                 **self.OPTIONS,
