@@ -11,6 +11,7 @@ aria.download(File('https://',path=''))
 from .aria2p_wrapper import (
     File,
     Aria,
+    get_dl_path,
     get_aria,
     get_slowest,
     doing_done_fail_pause,

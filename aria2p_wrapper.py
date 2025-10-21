@@ -8,6 +8,7 @@ aria = Aria()
 aria.download(File('https://',path=''))
 ```
 """
+from contextlib import contextmanager
 import aria2p
 import asyncio, hashlib, logging, subprocess
 from time import sleep
@@ -182,6 +183,10 @@ class File:
             else Log.debug(f"{self.path.name}: {hash}(expected)")
         )
         return is_hash
+
+
+def get_dl_path(dl: "aria2p.Download"):
+    return Path(dl.dir, dl.name)
 
 
 def get_aria(
@@ -386,10 +391,32 @@ class Aria:
             return f"{slowest.name} ETA={slowest.eta_string()}"
         return ""
 
-    def wait_all(self, interval=INTERVAL * 2):
-        while slowest := self.slowest:
-            if slowest:
-                Log.info(f"{self}\t🐌{self.str_(slowest)}")
+    @contextmanager
+    def state(self, log: logging.Logger | None = Log):
+        """yield slowest, return fails, log state if log is not None
+        Usage:
+        ```python
+        with self.state() as slowest:
+            sleep(self.interval)
+        """
+        has_yield = False
+        while True:
+            if slowest := self.slowest:
+                log.info(f"{self}\t🐌{self.str_(slowest)}") if log else None
+                yield slowest
+                has_yield = True
+                continue
+            _, _, fails, _ = self.doing_o_x_ii
+            if fails and log:
+                e = [{get_dl_path(f): [f.error_code, f.error_message]} for f in fails]
+                log.error(f"{self}\t{e}")
+            break
+        if not has_yield:
+            yield None
+        return fails
+
+    def wait_all(self, interval=INTERVAL):
+        with self.state():
             sleep(interval)
 
     async def till_all(self, interval=INTERVAL):
@@ -404,11 +431,7 @@ class Aria:
             task.cancel()
         ```
         """
-        while slowest := self.slowest:
-            if slowest:
-                Log.info(
-                    f"⬇ {slowest.name} ETA: {slowest.eta}. {self.api.get_stats()._struct}"
-                )
+        with self.state():
             await asyncio.sleep(interval)
 
 
