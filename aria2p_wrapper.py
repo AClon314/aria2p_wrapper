@@ -8,13 +8,12 @@ aria = Aria()
 aria.download(File('https://',path=''))
 ```
 """
-from contextlib import contextmanager
 import aria2p
 import asyncio, hashlib, logging, subprocess
 from time import sleep
 from pathlib import Path
 from datetime import timedelta
-from typing import Callable, Literal, Sequence, TypedDict, Unpack, Any, get_args
+from typing import Callable, Literal, Sequence, TypedDict, Unpack, get_args
 
 try:
     import requests, httpx
@@ -345,7 +344,7 @@ class Aria:
             _info = (
                 [f"({f.path},{f.urls})\t" for f in files]
                 if IS_DEBUG
-                else [f"{f.path.name}" for f in files]
+                else [f"{f.path}" for f in files]
             )
             Log.debug(f"⬇ {_info}")
         dls: list[aria2p.Download] = []
@@ -384,39 +383,44 @@ class Aria:
         cli = self.api.client
         return f"{self.__class__.__name__}(host={cli.host},port={cli.port},secret={cli.secret})"
 
-    def str_(self, slowest: aria2p.Download | None = None):
-        if not slowest:
-            slowest = self.slowest
-        if slowest:
-            return f"{slowest.name} ETA={slowest.eta_string()}"
+    def str_dl(self, dl: aria2p.Download | None = None):
+        if not dl:
+            dl = self.slowest
+        if dl:
+            return f"ETA={dl.eta_string()} {get_dl_path(dl)}"
         return ""
 
-    @contextmanager
     def state(self, log: logging.Logger | None = Log):
         """yield slowest, return fails, log state if log is not None
         Usage:
         ```python
-        with self.state() as slowest:
-            sleep(self.interval)
+        while self.state():
+            sleep(interval)
+        # or:
+        state = self.state()
+        try:
+            for slowest in state:
+                sleep(self.interval)
+        except StopIteration as e:
+            fails = e.value
+        ```
         """
-        has_yield = False
         while True:
             if slowest := self.slowest:
-                log.info(f"{self}\t🐌{self.str_(slowest)}") if log else None
+                slowest = self.slowest
+                log.info(f"{self}\t🐌{self.str_dl(slowest)}") if log else None
                 yield slowest
-                has_yield = True
                 continue
             _, _, fails, _ = self.doing_o_x_ii
             if fails and log:
                 e = [{get_dl_path(f): [f.error_code, f.error_message]} for f in fails]
                 log.error(f"{self}\t{e}")
             break
-        if not has_yield:
-            yield None
         return fails
 
     def wait_all(self, interval=INTERVAL):
-        with self.state():
+        """invoke self.state()"""
+        while self.state():
             sleep(interval)
 
     async def till_all(self, interval=INTERVAL):
@@ -431,7 +435,7 @@ class Aria:
             task.cancel()
         ```
         """
-        with self.state():
+        while self.state():
             await asyncio.sleep(interval)
 
 
