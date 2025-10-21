@@ -235,10 +235,22 @@ def get_slowest(
     return _slowest
 
 
-def done_and_not(dls: Sequence["aria2p.Download"]):
-    complete = [dl for dl in dls if dl.is_complete]
-    NOT = [dl for dl in dls if not dl.is_complete]
-    return complete, NOT
+def doing_done_fail_pause(dls: Sequence["aria2p.Download"]):
+    """return (doing, done, fail, pause) download lists"""
+    doing: list["aria2p.Download"] = []
+    done: list["aria2p.Download"] = []
+    fail: list["aria2p.Download"] = []
+    pause: list["aria2p.Download"] = []
+    for dl in dls:
+        if dl.is_complete:
+            done.append(dl)
+        elif dl.error_code is not None:
+            fail.append(dl)
+        elif dl.is_paused:
+            pause.append(dl)
+        else:
+            doing.append(dl)
+    return doing, done, fail, pause
 
 
 class Aria:
@@ -274,9 +286,9 @@ class Aria:
         return get_slowest(self.dls)
 
     @property
-    def done_and_not(self):
-        """the uncomplete download tasks"""
-        return done_and_not(self.dls)
+    def doing_o_x_ii(self):
+        """return (doing, done, fail, pause) download lists"""
+        return doing_done_fail_pause(self.dls)
 
     def __init__(
         self,
@@ -350,13 +362,16 @@ class Aria:
 
     def __str__(self):
         stat = self.api.get_stats()
+        doing, done, failed, pause = self.doing_o_x_ii
         ico = []
-        if stat.num_active:
-            ico += [f"{stat.num_active}⬇"]
-        if stat.num_waiting:
-            ico += [f"{stat.num_waiting}⏸"]
-        if stat.num_stopped:
-            ico += [f"{stat.num_stopped}⏹"]
+        if doing:
+            ico += [f"{len(doing)}⬇"]
+        if done:
+            ico += [f"{len(done)}✔"]
+        if failed:
+            ico += [f"{len(failed)}❌"]
+        if pause:
+            ico += [f"{len(pause)}⏸"]
         ico += [stat.download_speed_string()]
         return f"{'  '.join(ico)} Aria@{id(self):x}"
 

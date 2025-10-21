@@ -13,8 +13,9 @@ from .aria2p_wrapper import (
     Aria,
     get_aria,
     get_slowest,
-    done_and_not,
+    doing_done_fail_pause,
     calc_hash,
     calc_hash_,
     to_options,
+    Log,
 )
