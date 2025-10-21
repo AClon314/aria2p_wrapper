@@ -31,7 +31,6 @@ logging.basicConfig(
     datefmt="%H:%M:%S",
 )
 IS_DEBUG = Log.isEnabledFor(logging.DEBUG)
-CHECK_HASH = False  # set True in production env
 
 
 def calc_hash(file_path: str | Path, algorithm: TYPE_HASH | str = "sha256") -> str:
@@ -147,10 +146,23 @@ class File:
         for k, v in options.items():
             setattr(self, k, v)
 
-    def exists(self, check_hash=CHECK_HASH, follow_symlinks: bool = True):
-        """return is_exist and checksum"""
+    def exists(self, check_hash: bool | None = None, follow_symlinks: bool = True):
+        """return is_exist and checksum. if check_hash is None, return checksum. else could raise ValueError if no hash is set."""
         is_exist = self.path.exists(follow_symlinks=follow_symlinks)
-        return (is_exist and self.checksum()) if check_hash else is_exist
+        err = checksum = None
+        if check_hash == False:
+            return is_exist
+        else:
+            try:
+                checksum = self.checksum()
+            except ValueError as e:
+                err = e
+            if check_hash is None:
+                return checksum if checksum is not None else False
+            elif err:
+                raise err
+            else:
+                return is_exist and checksum
 
     def checksum(self, hash: str | None = None, algorithm: TYPE_HASH = "md5") -> bool:
         """raise ValueError if no hash is set, return True if hash matches"""
