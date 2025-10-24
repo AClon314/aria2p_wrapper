@@ -1,4 +1,5 @@
 #!/bin/env python
+# TODO: url support generator to refresh token. don't use callable because generator could save context var.
 """
 continue suspended file, simulate request as from browser, support smart auto retry when speed is too low.
 
@@ -62,10 +63,11 @@ class Kw_options(TypedDict, total=False):
     referer: str
     max_tries: str
     header: str
+    check_certificate: bool
 
 
 def to_options(response: "Response") -> dict[str, str]:
-    """from response to aria2p options"""
+    """from response to aria2p options. See: https://aria2.github.io/manual/en/html/aria2c.html#input-file"""
     options: dict[str, str] = {}
     req_headers = response.request.headers
     req_opt = {
@@ -341,11 +343,7 @@ class Aria:
         """
         files = [d for d in file if not d.exists()]
         if files:
-            _info = (
-                [f"({f.path},{f.urls})\t" for f in files]
-                if IS_DEBUG
-                else [f"{f.path}" for f in files]
-            )
+            _info = [f"({f.path},{f.urls})\t" for f in files]
             Log.debug(f"⬇ {_info}")
         dls: list[aria2p.Download] = []
         for f in files:
@@ -390,8 +388,10 @@ class Aria:
             return f"ETA={dl.eta_string()} {get_dl_path(dl)}"
         return ""
 
-    def state(self, log: logging.Logger | None = Log):
+    def state(self, Raise=True, log: logging.Logger | None = Log):
         """yield slowest, return fails, log state if log is not None
+
+        raise RuntimeError if Raise is True and any download failed.
         Usage:
         ```python
         for _ in (__:=self.state()):
@@ -421,13 +421,16 @@ class Aria:
             _, _, fails, _ = self.doing_o_x_ii
             if fails and log:
                 e = [{get_dl_path(f): [f.error_code, f.error_message]} for f in fails]
-                log.error(f"{self}\t{e}")
+                if Raise:
+                    raise RuntimeError(f"Aria2 download failed: {e}", fails)
+                else:
+                    log.error(f"{self}\t{e}")
             break
         return fails
 
-    def wait_all(self, interval=INTERVAL):
+    def wait_all(self, interval=INTERVAL, Raise=True):
         """invoke self.state()"""
-        for _ in (__ := self.state()):
+        for _ in (__ := self.state(Raise=Raise)):
             sleep(interval)
 
     async def till_all(self, interval=INTERVAL):
